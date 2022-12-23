@@ -6,7 +6,7 @@ struct WolfeType{T}
 end
 
 # Eqn 3.6 of Nocedal 2006.
-# scale-invariant: cost function multiple or affine change of variables do not change the conditions.
+# scale-invariant: objective function multiple or affine change of variables do not change the conditions.
 function linesearch(
     config::WolfType{T},
     α,

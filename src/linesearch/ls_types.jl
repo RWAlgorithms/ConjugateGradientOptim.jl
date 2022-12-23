@@ -104,7 +104,7 @@ function evalϕdϕ!(
         xp[i] = x[i] + a * u[i]
     end
 
-    # evaluate the cost and its gradient restricted to the line.
+    # evaluate the objective and its gradient restricted to the line.
     ϕ_xp = fdf!(df_xp, xp)
     dϕ_xp = dot(df_xp, u)
 

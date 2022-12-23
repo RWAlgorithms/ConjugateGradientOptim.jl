@@ -2,10 +2,22 @@ module ConjugateGradientDescent
 
 using LinearAlgebra
 
-include("./linesearch/linesearch_types.jl")
-include("./yuan2019.jl")
+#include("./linesearch/linesearch_types.jl")
 #include("./linesearch/alg851.jl")
 
-#greet() = print("Hello World!")
+include("linesearch_types.jl")
+include("types.jl")
+include("cg_utils.jl")
+
+include("solve_system.jl")
+
+
+export TraceContainer,
+EnableTrace,
+DisableTrace,
+Results,
+LineSearchContainer,
+runcg
+
 
 end # module MinimalistConjGradOptim
