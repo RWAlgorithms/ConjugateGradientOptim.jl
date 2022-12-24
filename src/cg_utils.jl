@@ -14,29 +14,27 @@ function updatedir!(
     return nothing
 end
 
+#### generic linesearch routines.
 
-# sec 2.2 of (Yuan 2019).
-function getβ(
-    g_next::Vector{T},
-    g::Vector{T},
-    u::Vector{T},
-    μ::T, # 0 < μ < 1
-    )::T where T
+function evalϕdϕ!(
+    xp::Vector{T},
+    df_xp::Vector{T},
+    fdf!,
+    a::T, # step size.
+    x::Vector{T}, # current iterate.
+    u::Vector{T}, # search direction.
+    ) where T
 
-    y = g_next - g
-    
-    R1 = μ*norm(u)*norm(y)
-    R2 = dot(u,y)
-    R3 = 2*dot(y,y)*dot(u,g_next)/dot(y,g_next)
-    R = max(R1, R2, R3)
-    #R = R2 # force the Hager–Zhang case; see sec 2.2 of (Yuan 2019).
+    # update iterate on a line.
+    for i in eachindex(x)
+        xp[i] = x[i] + a * u[i]
+    end
 
-    tmp2 = g_next ./ R
+    # evaluate the objective and its gradient restricted to the line.
+    ϕ_xp = fdf!(df_xp, xp)
+    dϕ_xp = dot(df_xp, u)
 
-    m = 2*dot(y,y)/R
-    tmp1 = y - m .* u
-
-    β_MN = dot(tmp1, tmp2)
-
-    return β_MN
+    return ϕ_xp, dϕ_xp
 end
+
+

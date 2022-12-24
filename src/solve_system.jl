@@ -64,9 +64,9 @@ end
 function solvesystem(
     fdf!,
     x_initial::Vector{T},
-    config::CGConfig{T,ET},
+    config::CGConfig{T,BT,ET},
     linesearch_config::LinesearchSolveSys{T},
-    ) where {T <: AbstractFloat, ET}
+    ) where {T <: AbstractFloat, BT, ET}
 
     # # Set up.
 
@@ -178,10 +178,10 @@ function solvesystem(
         # update objective-related evaluations using `x`, and update `β`.
         f_x = fdf!(info.df_xp, x) # temporarily use info.df_xp to store the gradient of the next iterate.
         β = getβ(
+            config.β_config,
             info.df_xp,
             df_x,
             info.u,
-            config.μ,
         )
         df_x[:] = info.df_xp # now, safe to overwrite gradient of the iterate.
         info.x[:] = x

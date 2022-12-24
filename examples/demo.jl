@@ -51,29 +51,26 @@ s = 1.0
 ρ = 0.95
 approx_min_step_size = 1e-6
 linesearch_max_iters = round(Int, log(ρ, approx_min_step_size))
-linesearch_config = ConjugateGradientDescent.setupLinesearchSolveSys(
+linesearch_config = ConjugateGradientOptim.setupLinesearchSolveSys(
     s;
     σ = 0.5,
     ρ = ρ,
     max_iters = round(Int, log(ρ, 1e-6)),
 )
 
+μ = 0.1
 ϵ = 1e-5
-config = ConjugateGradientDescent.setupCGConfig(
+config = ConjugateGradientOptim.setupCGConfig(
     ϵ,
-    ConjugateGradientDescent.EnableTrace();
-    # ρ = ρ,
-    # σ = σ,
-    # s = s,
-    μ = 0.1,
-    #linesearch_max_iters = linesearch_max_iters,
+    ConjugateGradientOptim.YuanHagerZhang(μ),
+    ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
     verbose = false,
 )
 
 
 x0 = [0.43; 1.23]
-ret = ConjugateGradientDescent.solvesystem(
+ret = ConjugateGradientOptim.solvesystem(
     fdf!, x0, config, linesearch_config,
 )
 

@@ -8,4 +8,4 @@ import FiniteDifferences
 import PyPlot
 
 using Revise
-import ConjugateGradientDescent
+import ConjugateGradientOptim

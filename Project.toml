@@ -1,4 +1,4 @@
-name = "ConjugateGradientDescent"
+name = "ConjugateGradientOptim"
 uuid = "b70a8a31-ea99-4068-b746-dd57a94b00fb"
 authors = ["Roy Wang"]
 version = "0.1.0"

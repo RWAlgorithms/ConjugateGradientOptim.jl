@@ -1,4 +1,7 @@
 
+abstract type βConfig end
+# see cg_flavours.jl for the concrete types of `βConfig`.
+
 abstract type TraceTrait end
 struct EnableTrace <: TraceTrait end
 struct DisableTrace <: TraceTrait end
@@ -67,6 +70,27 @@ function updatetrace!(
 end
 
 
+### generic linesearch intermediate quantities.
+
+struct LineSearchContainer{T} # all arrays have same size.
+    xp::Vector{T}  # proposed iterate.
+    df_xp::Vector{T}
+    
+    x::Vector{T} # current iterate.
+    u::Vector{T} # search direction.
+end
+
+function LineSearchContainer(::Type{T}, N::Int) where T <: AbstractFloat
+
+    return LineSearchContainer(
+        Vector{T}(undef, N),
+        Vector{T}(undef, N),
+        Vector{T}(undef, N),
+        Vector{T}(undef, N),
+    )
+end
+
+
 ##################
 
 # if initial iterate meet the stopping criteria, treat as ran 0 iterations; no trace.
@@ -120,12 +144,13 @@ end
 ############# algorithm configurations.
 
 
-struct CGConfig{T,ET}
+struct CGConfig{T,BT,ET}
     # ρ::T # 0 < ρ < 1
     # σ::T # σ > 0
     # s::T # s > 0 
     ϵ::T # 0 < ϵ < 1
-    μ::T # 0 < μ < 1
+    β_config::BT
+    #μ::T # 0 < μ < 1
     # linesearch_max_iters::Int
     max_iters::Int
     verbose::Bool
@@ -136,28 +161,30 @@ end
 # use default values from paper.
 function setupCGConfig(
     ϵ::T,
+    β_config::BT,
     trace_status::ET;
     #ρ = convert(T, 0.95),
     #σ = convert(T, 0.5),
     #s = convert(T, 1.0),
-    μ = convert(T, 0.1),
+    #μ = convert(T, 0.1),
     #linesearch_max_iters = round(Int, log(ρ, 1e-6)),
     max_iters = 1000,
     verbose = false,
-    )::CGConfig{T,ET} where {T <: AbstractFloat, ET <: TraceTrait}
+    )::CGConfig{T,BT,ET} where {T <: AbstractFloat, BT <: βConfig, ET <: TraceTrait}
 
     # @assert zero(T) < ρ < one(T)
     # @assert ρ > zero(T)
     # @assert s > zero(T)
     @assert zero(T) < ϵ < one(T)
-    @assert zero(T) < μ < one(T)
+    #@assert zero(T) < μ < one(T)
 
     return CGConfig(
         # ρ,
         # σ,
         # s,
         ϵ,
-        μ,
+        β_config,
+        #μ,
         #linesearch_max_iters,
         max_iters,
         verbose,
@@ -165,4 +192,5 @@ function setupCGConfig(
         #linesearch_config,
     )
 end
+
 

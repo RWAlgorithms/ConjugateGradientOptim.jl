@@ -213,10 +213,10 @@ function minimizeobjective(
         # update objective-related evaluations using `x`, and update `β`.
         f_x = fdf!(info.df_xp, x) # temporarily use info.df_xp to store the gradient of the next iterate.
         β = getβ(
+            config.β_config,
             info.df_xp,
             df_x,
-            info.u,
-            config.μ,
+            info.u,            
         )
         df_x[:] = info.df_xp # now, safe to overwrite gradient of the iterate.
         info.x[:] = x
