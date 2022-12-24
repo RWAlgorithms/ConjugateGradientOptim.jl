@@ -62,7 +62,7 @@ linesearch_config = ConjugateGradientOptim.setupLinesearchSolveSys(
 ϵ = 1e-5
 config = ConjugateGradientOptim.setupCGConfig(
     ϵ,
-    ConjugateGradientOptim.YuanHagerZhang(μ),
+    ConjugateGradientOptim.setupYuanHagerZhang(μ),
     ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
     verbose = false,

@@ -1,25 +1,32 @@
 
 # Algorithm 3.5 from (Nocedal 2006), strong wolfe. Using bisection.
-mutable struct LinesearchNocedal{T}
-    a_initial::T
+struct LinesearchNocedal{T}
+    #a_initial::T
     #const a_max::T
-    const c1::T # σ > 0
-    const c2::T # s > 0 
-    const max_iters::Int
+    c1::T # σ > 0
+    c2::T # s > 0 
+    a_max_growth_factor::T
+    max_iters::Int
+    zoom_max_iters::Int
 end
 
+# for c1, c2: see eqn 3.6-7 of Noceldal and eqns 8-9 of Yuan 20019.
 function setupLinesearchNocedal(
-    a_initial::T;
-    c1 = convert(T, 1e-5), # δ.  # see eqn 3.6-7 of Noceldal and eqns 8-9 of Yuan 20019.
-    c2 = convert(T, 0.8), # σ
-    max_iters = 1000,
-    ) where T
+    c1::T,
+    c2::T;
+    a_max_growth_factor::T = convert(T, 2),
+    max_iters::Int = convert(Int, 1000),
+    zoom_max_iters::Int = convert(Int, 100),
+    )::LinesearchNocedal{T} where T
 
     @assert zero(T) < c1 < c2 < one(T)
-    @assert a_initial > zero(T)
+    #@assert a_initial > zero(T)
     @assert max_iters >= 0
+    @assert zoom_max_iters >= 0
+    @assert a_max_growth_factor > 1
 
-    return LinesearchNocedal(a_initial, c1, c2, max_iters)
+    #return LinesearchNocedal(a_initial, c1, c2, max_iters)
+    return LinesearchNocedal(c1, c2, a_max_growth_factor, max_iters, zoom_max_iters)
 end
 
 # search via bisection. Algorithm 3.6 from (Nocedal 2006).
@@ -29,66 +36,171 @@ function linesearch!(
     fdf!,
     f_x::T,
     df_x::Vector{T},
+    a_initial::T,
     ) where T <: AbstractFloat
 
-    max_iters = config.max_iters
-    c1, c2, a1 = config.c1, config.c2, config.a1
+    # parse, checks.
+    max_iters, zoom_max_iters = config.max_iters, config.zoom_max_iters
+    c1, c2 = config.c1, config.c2
+    a_max_growth_factor = config.a_max_growth_factor
     xp, df_xp, x, u = info.xp, info.df_xp, info.x, info.u
 
-    #norm_u_sq = dot(u,u)
+    if !( zero(T) < a_initial && isfinite(a_initial) )
+        # invalid a_initial. Use default value.
+        a_initial = one(T)
+    end
+
+    # set up.
     ϕ_0 = f_x
-    dϕ_0 = dot(df_x,u)
-    if dϕ_0 < zero(T)
+    dϕ_0 = dot(df_x, u)
+    if dϕ_0 > zero(T)
         println("non-descent direction. Exit.")
-        return convert(T, NaN), convert(T, NaN), 0 #  TODO.
+        return ϕ_0, zero(T), 0, :non_descent_direction
     end
 
     a_prev = zero(T)
     ϕ_a_prev = ϕ_0
-    dϕ_a_prev = dϕ_0
 
-    a = a1
-    a_max = a*10 # do not supply a constant maximum.
+    a = a_initial
+    a_max = a*a_max_growth_factor # do not supply a constant maximum.
+
+    fdf_evals_ran = 0
 
     non_initial_iter = false
-    for i = 1:max_iters
+    for _ = 1:max_iters
         
         ϕ_a, dϕ_a = evalϕdϕ!(xp, df_xp, fdf!, a, x, u)
+        fdf_evals_ran += 1
 
         chk1 = ϕ_a > ϕ_0 + c1*a*dϕ_0
         chk2 = ϕ_a >= ϕ_a_prev
         if chk1 || (chk2 && non_initial_iter)
-            a = zoom(a_prev, a)
-            return a
+
+            # zoom(a_prev, a)
+            a_lb = a_prev
+            a_ub = a
+            ϕ_a_lb = ϕ_a_prev
+            return zoom!(
+                xp,
+                df_xp,
+                fdf!,
+                x,
+                u,
+                a_lb,
+                a_ub,
+                ϕ_a_lb,
+                ϕ_0,
+                dϕ_0,
+                c1,
+                c2,
+                fdf_evals_ran,
+                zoom_max_iters,
+            )
         end
 
         if abs(dϕ_a) <= -c2*dϕ_0
-            return a
+
+            return ϕ_a, a, fdf_evals_ran, :success
         end
         
         if dϕ_a >= 0
-            a = zoom(a, a_prev)
-            return a
+
+            # zoom(a, a_prev)
+            a_lb = a
+            a_ub = a_prev
+            ϕ_a_lb = ϕ_a
+            return zoom!(
+                xp,
+                df_xp,
+                fdf!,
+                x,
+                u,
+                a_lb,
+                a_ub,
+                ϕ_a_lb,
+                ϕ_0,
+                dϕ_0,
+                c1,
+                c2,
+                fdf_evals_ran,
+                zoom_max_iters,
+            )
         end
 
         # ## pre-update: book keep
         a_prev = a
         ϕ_a_prev = ϕ_a
-        dϕ_a_prev = dϕ_a
         non_initial_iter = true
 
         # ## update:choose a in [a, a_max]
         # use bisection for next candidate.
-        a = (a_max + a)/2
+        a_max = a*a_max_growth_factor
+        if a > a_max # a crude overflow detection.
+            if verbose
+                println("Overflow detected for linesearch upperbound update. Exit.")
+            end
+            return ϕ_a, a, fdf_evals_ran, :linesearch_a_max_overflow
+        end
+        a = (a_max + a)/2 # choose a via bisection.
     end
 
     if verbose
-        println("Linesearch maximum hit. Terminate.")
+        println("Reached linesearch maximum iterations. Exit.")
     end
 
-    return xp, convert(T,NaN), convert(T,NaN), i
+    return ϕ_a, a, fdf_evals_ran, :linesearch_max_iters_reached
 end
 
+
+# Alg 3.6 from (Nocedal 2006).
+function zoom!(
+    xp::Vector{T},
+    df_xp::Vector{T},
+    fdf!,
+    x::Vector{T},
+    u::Vector{T},
+    a_lb::T,
+    a_ub::T,
+    ϕ_a_lb::T,
+    ϕ_0::T,
+    dϕ_0::T,
+    c1::T,
+    c2::T,
+    fdf_evals_ran::Int,
+    max_iters::Int
+    ) where T
+
+    # pre-allocate.
+    a = zero(T)
+    ϕ_a = zero(T)
+    dϕ_a = zero(T)
+
+    for _ = 1:max_iters
+
+        # interpolate via bisection.
+        a = (a_lb+a_ub)/2
+
+        # zoom algorithm, inner loop.
+        ϕ_a, dϕ_a = evalϕdϕ!(xp, df_xp, fdf!, a, x, u)
+        fdf_evals_ran += 1
+
+        if (ϕ_a > ϕ_0 + c1*a*dϕ_0) || (ϕ_a >= ϕ_a_lb)
+            a_ub = a
+        else
+            if abs(dϕ_a) <= -c2*dϕ_0
+                return ϕ_a, a, fdf_evals_ran, :success
+            end
+
+            if dϕ_a*(a_ub-a_lb) >= 0
+                a_ub = a_lb
+            end
+            a_lb = a
+            ϕ_a_lb = ϕ_a
+        end
+    end
+
+    return ϕ_a, a, fdf_evals_ran, :zoom_max_iters_reached
+end
 
 
 ###### Alg 2.2 in (Yuan 2019).
@@ -100,8 +212,6 @@ function minimizeobjective(
     config::CGConfig{T,ET},
     linesearch_config::LinesearchNocedal{T},
     ) where {T <: AbstractFloat, ET}
-
-    # # Set up.
 
     # ## parse.
     D = length(x_initial)
@@ -137,6 +247,7 @@ function minimizeobjective(
     info.x[:] = x
     info.xp[:] = x
     info.df_xp[:] = df_x
+    a_initial = NaN # use default value on first try. Use HagerZhang 851 algorithm later.
 
     # # Run algortihm.
     for n = 1:max_iters
@@ -156,14 +267,16 @@ function minimizeobjective(
         end
 
         # step 3 (Yuan 2019): linesearch.
-        f_xp, norm_df_xp, a_star, linesearch_iters_ran, success_flag = linesearch!(
+        f_xp, a_star, fdf_evals_ran, status_symbol = linesearch!(
             info,
             linesearch_config,
             fdf!,
             f_x,
             df_x,
+            a_initial,
         )
-        if !success_flag
+        a_initial = a_star
+        if status_symbol != :success
             # return the last known good iterate.
             updateresult!(
                 ret,
@@ -171,58 +284,26 @@ function minimizeobjective(
                 df_x,
                 f_x,
                 n-1,
-                :linesearch_failed,
+                status_symbol,
             )
             return ret
         end
 
         # step 4 & 5 (Yuan 2019): update iterate and objective-related evaluations.
-
-        if norm_df_xp < config.ϵ
-            # return the linesearch solution.
-            updateresult!(
-                ret,
-                info.xp,
-                info.df_xp,
-                f_xp,
-                n,
-                :success,
-            )
-
-            # early exit, force update last trace.
-            updatetrace!(
-                ret.trace,
-                f_xp,
-                norm(info.df_xp),
-                linesearch_iters_ran,
-                n,
-            )
-
-            return ret
-        end
-
-        # update the iterate `x` using the linesearch solution in `info`.
-        updateiterateoptim!(
-            x,
-            info.df_xp,
-            norm_df_xp,
-            a_star,
-            info.u,
-        )
-
-        # update objective-related evaluations using `x`, and update `β`.
-        f_x = fdf!(info.df_xp, x) # temporarily use info.df_xp to store the gradient of the next iterate.
+        #f_x = fdf!(info.df_xp, x) # temporarily use info.df_xp to store the gradient of the next iterate.
         β = getβ(
             config.β_config,
             info.df_xp,
             df_x,
             info.u,            
         )
+        x[:] = info.xp
+        f_x = f_xp
         df_x[:] = info.df_xp # now, safe to overwrite gradient of the iterate.
         info.x[:] = x
         norm_df_x = norm(df_x)
 
-        # step 2 (Yuan 2019): update search direction u.
+        # step 5: update search direction for next iteration.
         updatedir!(info.u, df_x, β)
 
         # update trace.
@@ -230,7 +311,8 @@ function minimizeobjective(
             ret.trace,
             f_x,
             norm_df_x,
-            linesearch_iters_ran,
+            a_star,
+            fdf_evals_ran,
             n,
         )
     end
@@ -241,26 +323,7 @@ function minimizeobjective(
         df_x,
         f_x,
         max_iters,
-        :max_iters,
+        :max_iters_reached,
     )
     return ret
-end
-
-# `xp` is z in Alg 3.1.
-function updateiterateoptim!(
-    x::Vector{T},
-    df_xp::Vector{T},
-    norm_df_xp::T,
-    a::T,
-    u::Vector{T},
-    ) where T
-
-    #m = a*dot(df_xp, u)/dot(df_x , df_x)
-    m = a*dot(df_xp, u)/norm_df_xp^2 # omit negative sign so that (1) has an addition.
-    
-    for i in eachindex(x)
-        x[i] = x[i] + m*df_xp[i] # (1).
-    end
-
-    return nothing
 end

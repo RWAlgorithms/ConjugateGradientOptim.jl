@@ -8,7 +8,7 @@ struct YuanHagerZhang{T} <: βConfig
     μ::T
 end
 
-function YuanHagerZhang(μ::T)::YuanHagerZhang{T} where T
+function setupYuanHagerZhang(μ::T)::YuanHagerZhang{T} where T
 
     @assert zero(T) < μ < one(T)
 

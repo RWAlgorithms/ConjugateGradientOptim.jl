@@ -13,12 +13,14 @@ struct DisableTrace <: TraceTrait end
 struct TraceContainer{T,ET}
     objective::Vector{T}
     grad_norm::Vector{T}
+    step_size::Vector{T}
     linesearch_iters_ran::Vector{Int}
     status::ET
 end
 
 function setuptrace(::Type{T}, status::ET) where {T <: AbstractFloat, ET <: TraceTrait}
     return TraceContainer(
+        Vector{T}(undef, 0),
         Vector{T}(undef, 0),
         Vector{T}(undef, 0),
         Vector{Int}(undef, 0),
@@ -33,6 +35,7 @@ function resizetrace!(
     
     resize!(t.objective, N)
     resize!(t.grad_norm, N)
+    resize!(t.step_size, N)
     resize!(t.linesearch_iters_ran, N)
 
     return nothing
@@ -50,12 +53,14 @@ function updatetrace!(
     t::TraceContainer{T,EnableTrace},
     f_x::T,
     df_x_norm::T,
+    step_size::T,
     linesearch_iters_ran::Int,
     n::Int,
     ) where T
 
     t.objective[n] = f_x
     t.grad_norm[n] = df_x_norm
+    t.step_size[n] = step_size
     t.linesearch_iters_ran[n] = linesearch_iters_ran
 
     return nothing

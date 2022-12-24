@@ -11,6 +11,7 @@ include("cg_utils.jl")
 include("cg_flavours.jl")
 
 include("solve_system.jl")
+include("optim.jl")
 
 
 export TraceContainer,
@@ -18,7 +19,7 @@ EnableTrace,
 DisableTrace,
 Results,
 LineSearchContainer,
-runcg
-
+solvesystem,
+minimizeobjective
 
 end # module MinimalistConjGradOptim

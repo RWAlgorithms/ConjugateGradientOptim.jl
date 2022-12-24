@@ -159,6 +159,7 @@ function solvesystem(
                 ret.trace,
                 f_xp,
                 norm(info.df_xp),
+                a_star,
                 linesearch_iters_ran,
                 n,
             )
@@ -195,6 +196,7 @@ function solvesystem(
             ret.trace,
             f_x,
             norm_df_x,
+            a_star,
             linesearch_iters_ran,
             n,
         )
@@ -206,7 +208,7 @@ function solvesystem(
         df_x,
         f_x,
         max_iters,
-        :max_iters,
+        :max_iters_reached,
     )
     return ret
 end
