@@ -85,7 +85,7 @@ function solvesystem(
     norm_df_x::T = norm(df_x)
     β::T = zero(T)
     norm_df_xp::T = convert(T, NaN)
-    linesearch_iters_ran::Int = -1
+    fdf_evals_ran::Int = -1
     
     # ## return container.
     ret = Results(
@@ -123,7 +123,7 @@ function solvesystem(
         end
 
         # step 3 (Yuan 2019): linesearch.
-        f_xp, norm_df_xp, a_star, linesearch_iters_ran, success_flag = linesearch!(
+        f_xp, norm_df_xp, a_star, fdf_evals_ran, success_flag = linesearch!(
             info,
             linesearch_config,
             fdf!,
@@ -160,7 +160,7 @@ function solvesystem(
                 f_xp,
                 norm(info.df_xp),
                 a_star,
-                linesearch_iters_ran,
+                fdf_evals_ran,
                 n,
             )
 
@@ -197,7 +197,7 @@ function solvesystem(
             f_x,
             norm_df_x,
             a_star,
-            linesearch_iters_ran,
+            fdf_evals_ran,
             n,
         )
     end

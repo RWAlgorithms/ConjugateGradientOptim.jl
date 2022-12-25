@@ -227,8 +227,7 @@ function minimizeobjective(
     f_x::T = fdf!(df_x, x)
     norm_df_x::T = norm(df_x)
     β::T = zero(T)
-    norm_df_xp::T = convert(T, NaN)
-    linesearch_iters_ran::Int = -1
+    fdf_evals_ran::Int = -1
     
     # ## return container.
     ret = Results(

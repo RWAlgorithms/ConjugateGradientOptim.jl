@@ -58,7 +58,10 @@ linesearch_config = ConjugateGradientOptim.setupLinesearchNocedal(
 ϵ = 1e-5
 config = ConjugateGradientOptim.setupCGConfig(
     ϵ,
-    ConjugateGradientOptim.setupYuanHagerZhang(μ),
+    #ConjugateGradientOptim.setupYuanHagerZhang(μ),
+    #ConjugateGradientOptim.HagerZhang(),
+    ConjugateGradientOptim.HestensesStiefel(),
+    #ConjugateGradientOptim.LiuStorrey(),
     ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
     verbose = false,
@@ -72,12 +75,12 @@ ret = ConjugateGradientOptim.minimizeobjective(
 
 println("Results:")
 @show ret.minimizer, ret.objective, norm(ret.gradient), ret.status
-@show sum(ret.trace.linesearch_iters_ran), ret.iters_ran
+@show sum(ret.trace.objective_evals), ret.iters_ran
 println()
 
 f_x_trace = ret.trace.objective
 df_x_norm_trace = ret.trace.grad_norm
-linesearch_iters_ran = ret.trace.linesearch_iters_ran
+objective_evals = ret.trace.objective_evals
 
 PyPlot.figure(fig_num)
 fig_num += 1
@@ -92,7 +95,7 @@ PyPlot.title("objective vs. iter")
 PyPlot.figure(fig_num)
 fig_num += 1
 
-PyPlot.plot(1:length(linesearch_iters_ran), linesearch_iters_ran,)
+PyPlot.plot(1:length(objective_evals), objective_evals,)
 
 PyPlot.legend()
 PyPlot.xlabel("iter")
