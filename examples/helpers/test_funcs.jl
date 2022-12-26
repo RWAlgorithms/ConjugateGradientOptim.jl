@@ -1,4 +1,19 @@
 
+# f = xx->((xx[1]+2*xx[2]-7)^2+(2*x[1]+x[2]-5)^2)
+function boothfdf!(g_p::Vector{T}, p::Vector{T}) where T <: AbstractFloat
+    x, y = p
+
+    f_p = (x+2*y-7)^2 + (2*x+y-5)^2
+
+    g_p[begin] = 2*(x+2*y-7) + 2*(2*x+y-5)*2
+    g_p[begin+1] = 2*(x+2*y-7)*2 + 2*(2*x+y-5)
+
+    return f_p
+end
+
+
+
+################ legacy.
 
 # M2 Mahfoud 1995 Niching Genetic Algorithms
 # minimum at 0.1. other modews at 0.3 0.5 0.7 0.9

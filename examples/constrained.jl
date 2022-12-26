@@ -25,11 +25,51 @@ Random.seed!(24)
 PyPlot.close("all")
 fig_num = 1
 
+
 ##########
 
 fdf! = boothfdf!
 
+function boxhdh!(
+    fi_evals::Vector{T}, #mutates. length m. constraints.
+    dfi_evals::Vector{Vector{T}}, #mutates, length m. gradient of constraints.
+    x::Vector{T},
+    lbs::Vector{T},
+    ubs::Vector{T},
+    )
+    
+    @assert length(lbs) == length(ubs) # for box, number of constraints is 2*d.
 
+    #
+    fill!(fi_evals, zero(T))
+    fi_evals[begin:begin+length(x)-1] = x .- ubs
+    fi_evals[begin+length(x):end] = lbs .- x
+
+    # the upper bounds.
+    for i = 1:length(x)
+        fill!(dfi_evals[i], zero(T))
+        dfi_evals[i][i] = one(T)
+    end
+
+    # the lower bounds.
+    for i = 1:length(x)
+        fill!(dfi_evals[i], zero(T))
+        dfi_evals[i][i] = -one(T)
+    end
+
+    return nothing
+end
+
+hdh! = (fi_xx,dfi_xx,xx)->boxhdh!(
+    fi_xx,
+    dfi_xx,
+    xx,
+    lbs,
+    ubs,
+)
+
+lbs = ones(2) .* -10
+ubs = ones(2) .* 10
 
 c1 = 1e-5
 c2 = 0.8
@@ -51,10 +91,15 @@ config = ConjugateGradientOptim.setupCGConfig(
     verbose = false,
 )
 
+# I am here.
+CvxInequalityConstraint()
 
 x0 = [0.43; 1.23]
-ret = ConjugateGradientOptim.minimizeobjective(
-    fdf!, x0, config, linesearch_config,
+ret = ConjugateGradientOptim.barriermethod!(
+    constaints,
+    fdf!, hdh!,
+    x0,
+    config, linesearch_config,
 )
 
 println("Results:")

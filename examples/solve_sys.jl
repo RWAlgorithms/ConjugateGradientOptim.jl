@@ -25,25 +25,9 @@ Random.seed!(24)
 PyPlot.close("all")
 fig_num = 1
 
-#booth function
-f = xx->((xx[1]+2*xx[2]-7)^2+(2*x[1]+x[2]-5)^2)
-
-function myfdf!(g_p::Vector{T}, p::Vector{T}) where T <: AbstractFloat
-    x, y = p
-
-    f_p = (x+2*y-7)^2 + (2*x+y-5)^2
-
-    g_p[begin] = 2*(x+2*y-7) + 2*(2*x+y-5)*2
-    g_p[begin+1] = 2*(x+2*y-7)*2 + 2*(2*x+y-5)
-
-    return f_p
-end
-
-# I am here. diverging!
-
 ##########
 
-fdf! = myfdf!
+fdf! = boothfdf!
 
 
 
