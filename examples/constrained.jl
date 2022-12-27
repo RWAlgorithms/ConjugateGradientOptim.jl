@@ -36,7 +36,7 @@ function boxhdh!(
     x::Vector{T},
     lbs::Vector{T},
     ubs::Vector{T},
-    )
+    ) where T
     
     @assert length(lbs) == length(ubs) # for box, number of constraints is 2*d.
 
@@ -46,15 +46,17 @@ function boxhdh!(
     fi_evals[begin+length(x):end] = lbs .- x
 
     # the upper bounds.
-    for i = 1:length(x)
+    for d = 1:length(x)
+        i = d
         fill!(dfi_evals[i], zero(T))
-        dfi_evals[i][i] = one(T)
+        dfi_evals[i][d] = one(T)
     end
 
     # the lower bounds.
-    for i = 1:length(x)
+    for d = 1:length(x)
+        i = d + length(x)
         fill!(dfi_evals[i], zero(T))
-        dfi_evals[i][i] = -one(T)
+        dfi_evals[i][d] = -one(T)
     end
 
     return nothing
@@ -75,34 +77,155 @@ c1 = 1e-5
 c2 = 0.8
 linesearch_config = ConjugateGradientOptim.setupLinesearchNocedal(
     c1, c2; a_max_growth_factor = 2.0,
-    max_iters = 1000, zoom_max_iters = 100,
+    max_iters = 1000, zoom_max_iters = 50,
 )
 
-μ = 0.1
+
 ϵ = 1e-5
 config = ConjugateGradientOptim.setupCGConfig(
     ϵ,
-    #ConjugateGradientOptim.setupYuanHagerZhang(μ),
-    #ConjugateGradientOptim.HagerZhang(),
-    ConjugateGradientOptim.HestensesStiefel(),
+    ConjugateGradientOptim.SallehAlhawarat(),
     #ConjugateGradientOptim.LiuStorrey(),
     ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
     verbose = false,
 )
 
-# I am here.
-CvxInequalityConstraint()
-
-x0 = [0.43; 1.23]
-ret = ConjugateGradientOptim.barriermethod!(
-    constaints,
-    fdf!, hdh!,
-    x0,
-    config, linesearch_config,
+rerun_config1 = ConjugateGradientOptim.setupCGConfig(
+    ϵ,
+    ConjugateGradientOptim.HagerZhang(),
+    ConjugateGradientOptim.EnableTrace();
+    max_iters = 1000,
+    verbose = false,
 )
 
-println("Results:")
+μ = 0.1
+rerun_config2 = ConjugateGradientOptim.setupCGConfig(
+    ϵ,
+    ConjugateGradientOptim.setupYuanWangSheng(μ),
+    ConjugateGradientOptim.EnableTrace();
+    max_iters = 1000,
+    verbose = false,
+)
+
+N_vars = 2
+constraints = ConjugateGradientOptim.setupCvxInequalityConstraint(Float64, 2*N_vars, 2) # box constraint.
+
+# TODO add verbose mode as dispatch?
+
+x0 = [0.43; 1.23]
+df_x0 = similar(x0)
+f_x0 = fdf!(df_x0, x0)
+
+u = hdh!(constraints.fi_evals, constraints.dfi_evals, x0)
+
+# ## debug.
+# @show constraints.fi_evals
+# @show constraints.dfi_evals
+# @show constraints.grad
+# println()
+# @show x0
+
+# # I am here. track barriermethod() because it isn't matching up.
+# #t0 = 1.0
+# t0 = NaN
+# t0 = ConjugateGradientOptim.verifyt0(
+#     t0, 
+#     x0, fdf!, 10.0, 0.0)
+    
+# #
+# T = Float64
+# f0df0! = fdf!
+
+# t = ones(T, 1)
+# t[begin] = t0
+# qdq! = (gg,xx)->ConjugateGradientOptim.evalbarrier!(
+#     constraints,
+#     gg,
+#     f0df0!,
+#     hdh!,
+#     xx,
+#     t[begin],
+# )
+
+
+# dq_x0 = similar(x0)
+
+# @show x0
+# q_x0 = qdq!(dq_x0, x0)
+# @show x0 # I am here. problem.
+
+# @show constraints.fi_evals
+# @show constraints.dfi_evals
+# @show constraints.grad
+# println()
+
+# rets = ConjugateGradientOptim.minimizeobjectivererun(
+#     qdq!,
+#     x0,
+#     config,
+#     linesearch_config,
+#     (rerun_config1, linesearch_config),
+#     (rerun_config2, linesearch_config),
+# )
+# @show rets[end].status, rets[end].minimizer, length(rets)
+
+# @assert 1==2
+
+# ret = ConjugateGradientOptim.minimizeobjective(
+#     #fdf!,
+#     qdq!,
+#     x0,
+#     config,
+#     linesearch_config,
+# )
+# @show ret.status, ret.minimizer
+
+# ret2 = ConjugateGradientOptim.minimizeobjective(
+#     #fdf!,
+#     qdq!,
+#     ret.minimizer,
+#     config,
+#     linesearch_config,
+# )
+# dq_x_star = similar(ret2.minimizer)
+# q_x_star = qdq!(dq_x_star, ret2.minimizer)
+
+# @show ret2.status, ret2.minimizer
+
+# @assert 1==2
+
+barrier_tol = 1e-8
+barrier_growth_factor = 10.0
+max_iters = 100
+barrier_config = ConjugateGradientOptim.setupBarrierConfig(
+    barrier_tol,
+    barrier_growth_factor,
+    max_iters,
+)
+b_ret = ConjugateGradientOptim.barriermethod!(
+    constraints,
+    fdf!,
+    hdh!,
+    x0,
+    config,
+    linesearch_config,
+    barrier_config,
+    (rerun_config1, linesearch_config),
+    (rerun_config2, linesearch_config),
+)
+
+@show b_ret.status
+@show b_ret.centering_results[end][end].status
+
+@assert 6==5
+
+rets = b_ret.centering_results
+ret = rets[end]
+@show b_ret.status, b_ret.iters_ran
+println()
+
+println("Last centering step's results:")
 @show ret.minimizer, ret.objective, norm(ret.gradient), ret.status
 @show sum(ret.trace.objective_evals), ret.iters_ran
 println()

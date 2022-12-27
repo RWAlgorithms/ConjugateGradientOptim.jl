@@ -1,23 +1,25 @@
 
 #### various types of conjugate gradient β values.
+# See `ConjugateGradientOptim.jl`  for full reference information.
+
 # TODO: make these updates non-allocating.
 
 
-# from (Yuang 2019):
-struct YuanHagerZhang{T} <: βConfig
+# (Yuang 2019): modified Hager-Zhang, to have trust region behavior.
+struct YuanWangSheng{T} <: βConfig
     μ::T
 end
 
-function setupYuanHagerZhang(μ::T)::YuanHagerZhang{T} where T
+function setupYuanWangSheng(μ::T)::YuanWangSheng{T} where T
 
     @assert zero(T) < μ < one(T)
 
-    return YuanHagerZhang(μ)
+    return YuanWangSheng(μ)
 end
 
 # sec 2.2 of (Yuan 2019).
 function getβ(
-    β_config::YuanHagerZhang{T},
+    β_config::YuanWangSheng{T},
     g_next::Vector{T},
     g::Vector{T},
     u::Vector{T},
@@ -47,12 +49,11 @@ function getβ(
 end
 
 
-
+# The HagerZhang linesearch from Algorithm 851 is not implemented as of now.
 struct HagerZhang <: βConfig end
 
-
 # sec 2.2 of (Yuan 2019).
-# This is the YuanHagerZhang version, but set R = R2.
+# This is the YuanWangSheng version, but set R = R2.
 function getβ(
     β_config::HagerZhang,
     g_next::Vector{T},
@@ -76,23 +77,47 @@ function getβ(
     return β_MN
 end
 
-# TODO: HS: https://www.sciencedirect.com/science/article/pii/S1877705811017772?ref=cra_js_challenge&fr=njs
-struct HestensesStiefel <: βConfig end
+# Don't use Hestenses-Stiefel because it can yield ascent search directions.
+# struct HestensesStiefel <: βConfig end
 
-# sec 1 from (Yuan 2021).
+# # sec 1 from (Yuan 2021).
+# function getβ(
+#     β_config::HestensesStiefel,
+#     g_next::Vector{T},
+#     g::Vector{T},
+#     u::Vector{T},
+#     )::T where T
+
+#     y = g_next - g
+    
+#     numerator = dot(g_next, y)
+#     denominator = dot(u, y)
+
+#     return numerator/denominator
+# end
+
+# This is a modified Hestenses-Stiefel that restarts if ascent search direction is encountered.
+struct SallehAlhawarat <: βConfig end
+
+# sec 2 of (Salleh 2016)
 function getβ(
-    β_config::HestensesStiefel,
+    β_config::SallehAlhawarat,
     g_next::Vector{T},
     g::Vector{T},
     u::Vector{T},
     )::T where T
 
-    y = g_next - g
-    
-    numerator = dot(g_next, y)
-    denominator = dot(u, y)
+    norm_sq = norm(g_next)^2
+    tmp = dot(g_next, g)
 
-    return numerator/denominator
+    if norm_sq > tmp
+        numerator = norm_sq - tmp
+        denominator = dot(u, g_next) - dot(u, g)
+
+        return numerator/denominator
+    end
+
+    return zero(T)
 end
 
 
@@ -114,7 +139,6 @@ function getβ(
     return numerator/denominator
 end
 
-#struct LS <: βConfig end
 
-# from (Yuan 2021): Polak–Ribière–Polyak
+# from (Yuan 2021): future work.
 #struct PolakRibièrePolyak end

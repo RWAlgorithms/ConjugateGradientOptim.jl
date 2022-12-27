@@ -36,7 +36,8 @@ function linesearch!(
     fdf!,
     f_x::T,
     df_x::Vector{T},
-    a_initial::T,
+    a_initial::T;
+    verbose = false,
     ) where T <: AbstractFloat
 
     # parse, checks.
@@ -54,14 +55,22 @@ function linesearch!(
     ϕ_0 = f_x
     dϕ_0 = dot(df_x, u)
     if dϕ_0 > zero(T)
-        println("non-descent direction. Exit.")
-        return ϕ_0, zero(T), 0, :non_descent_direction
+
+        if verbose
+            println("non-descent direction. Exit.")
+        end
+        return ϕ_0, zero(T), 0, :non_descent_search_direction
+
+        # # modification from Noceldal: reset search direction u if non-descent direction.
+        # info.u[:] = -df_x
     end
 
     a_prev = zero(T)
     ϕ_a_prev = ϕ_0
 
     a = a_initial
+    ϕ_a = ϕ_0
+    dϕ_a = dϕ_0
     a_max = a*a_max_growth_factor # do not supply a constant maximum.
 
     fdf_evals_ran = 0
@@ -147,7 +156,7 @@ function linesearch!(
     if verbose
         println("Reached linesearch maximum iterations. Exit.")
     end
-
+    
     return ϕ_a, a, fdf_evals_ran, :linesearch_max_iters_reached
 end
 
@@ -203,15 +212,15 @@ function zoom!(
 end
 
 
-###### Alg 2.2 in (Yuan 2019).
 
+###### Alg 2.2 in (Yuan 2019).
 
 function minimizeobjective(
     fdf!,
     x_initial::Vector{T},
-    config::CGConfig{T,ET},
+    config::CGConfig{T,BT,ET},
     linesearch_config::LinesearchNocedal{T},
-    ) where {T <: AbstractFloat, ET}
+    ) where {T <: AbstractFloat, BT <: βConfig, ET}
 
     # ## parse.
     D = length(x_initial)
@@ -228,6 +237,7 @@ function minimizeobjective(
     norm_df_x::T = norm(df_x)
     β::T = zero(T)
     fdf_evals_ran::Int = -1
+    f_x0 = f_x # objective of initial iterate.
     
     # ## return container.
     ret = Results(
@@ -252,15 +262,41 @@ function minimizeobjective(
     for n = 1:max_iters
 
         # check stopping condition.
-        if norm_df_x < config.ϵ
-            # the previous iteration meets the stopping criteria. Return it.
+        if isfinite(f_x)
+            if norm_df_x < config.ϵ
+                #@show f_x, f_x0
+                if f_x <= f_x0
+                    # the previous iteration meets the stopping criteria. Return it.
+                    updateresult!(
+                        ret,
+                        x,
+                        df_x,
+                        f_x,
+                        n-1,
+                        :success,
+                    )
+                    return ret
+                end
+
+                # the previous iteration meets the stopping criteria. However, got a larger objective than the initial iterate.
+                updateresult!(
+                    ret,
+                    x,
+                    df_x,
+                    f_x,
+                    n-1,
+                    :increasing_objective,
+                )
+                return ret
+            end
+        else            
             updateresult!(
                 ret,
                 x,
                 df_x,
                 f_x,
                 n-1,
-                :success,
+                :non_finite_objective,
             )
             return ret
         end
@@ -325,4 +361,40 @@ function minimizeobjective(
         :max_iters_reached,
     )
     return ret
+end
+
+function minimizeobjectivererun(
+    fdf!,
+    x_initial::Vector{T},
+    config::CGConfig{T,BT,ET},
+    linesearch_config::LinesearchNocedal{T},
+    rerun_config_tuples...
+    )::Vector{Results{T,TraceContainer{T,ET}}} where {T <: AbstractFloat, BT <: βConfig, ET}
+    
+    rets = Vector{Results{T,TraceContainer{T,ET}}}(undef, 1)
+    rets[begin] = ConjugateGradientOptim.minimizeobjective(
+        fdf!,
+        x_initial,
+        config,
+        linesearch_config,
+    )
+
+    # run with backup configs if unsuccessful.
+    for k in eachindex(rerun_config_tuples)
+        if rets[end].status != :success
+            rerun_config, backup_linesearch_config = rerun_config_tuples[k]
+
+            ret = ConjugateGradientOptim.minimizeobjective(
+                fdf!,
+                rets[end].minimizer,
+                rerun_config,
+                backup_linesearch_config,
+            )
+            push!(rets, ret)
+        else
+            return rets
+        end
+    end
+
+    return rets
 end

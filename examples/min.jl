@@ -42,9 +42,9 @@ linesearch_config = ConjugateGradientOptim.setupLinesearchNocedal(
 ϵ = 1e-5
 config = ConjugateGradientOptim.setupCGConfig(
     ϵ,
-    #ConjugateGradientOptim.setupYuanHagerZhang(μ),
-    #ConjugateGradientOptim.HagerZhang(),
-    ConjugateGradientOptim.HestensesStiefel(),
+    #ConjugateGradientOptim.setupYuanWangSheng(μ),
+    ConjugateGradientOptim.HagerZhang(),
+    #ConjugateGradientOptim.SallehAlhawarat(),
     #ConjugateGradientOptim.LiuStorrey(),
     ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
