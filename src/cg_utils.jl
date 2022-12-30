@@ -1,37 +1,4 @@
 
-function updatedir!(
-    β_config::CGβConfig,
-    u::Vector{T},
-    df_x::Vector{T},
-    a::T,
-    ) where T
-
-    @assert length(u) == length(df_x)
-
-    for i in eachindex(u)
-        u[i] = -df_x[i] + a*u[i]
-    end
-
-    return nothing
-end
-
-function updatedir!(
-    β_config::QNβConfig,
-    u::Vector{T},
-    df_x::Vector{T},
-    a::T,
-    ) where T
-
-    @assert length(u) == length(df_x)
-
-    # here.
-    # for i in eachindex(u)
-    #     u[i] = -df_x[i] + a*u[i]
-    # end
-
-    return nothing
-end
-
 #### generic linesearch routines.
 
 function evalϕdϕ!(

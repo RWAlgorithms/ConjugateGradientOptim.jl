@@ -29,6 +29,7 @@ fig_num = 1
 ##########
 
 fdf! = boothfdf!
+N_vars = 2
 
 function boxhdh!(
     fi_evals::Vector{T}, #mutates. length m. constraints.
@@ -70,8 +71,8 @@ hdh! = (fi_xx,dfi_xx,xx)->boxhdh!(
     ubs,
 )
 
-lbs = ones(2) .* -10
-ubs = ones(2) .* 10
+lbs = ones(N_vars) .* -10
+ubs = ones(N_vars) .* 10
 
 # c1 = 1e-5
 # c2 = 0.8
@@ -93,6 +94,7 @@ linesearch_config = ConjugateGradientOptim.WolfeBisection(
 )
 
 μ = 0.1
+#ϵ_coarse = 1e-3
 ϵ = 1e-5
 config = ConjugateGradientOptim.setupCGConfig(
     ϵ,
@@ -105,26 +107,26 @@ config = ConjugateGradientOptim.setupCGConfig(
     verbose = false,
 )
 
-# rerun_config1 = ConjugateGradientOptim.setupCGConfig(
-#     ϵ,
-#     #ConjugateGradientOptim.HagerZhang(),
-#     ConjugateGradientOptim.LiuStorrey(),
-#     #ConjugateGradientOptim.setupYuanWangSheng(μ),
-#     ConjugateGradientOptim.EnableTrace();
-#     max_iters = 1000,
-#     verbose = false,
-# )
-
-rerun_config2 = ConjugateGradientOptim.setupCGConfig(
+#B_config = ConjugateGradientOptim.setupBroydenFamily(0.0, N_vars) # BFGS
+B_config = ConjugateGradientOptim.setupBroydenFamily(1.0, N_vars) # DFP
+rerun_config1 = ConjugateGradientOptim.setupCGConfig(
     ϵ,
-    ConjugateGradientOptim.setupYuanWangSheng(μ),
-    #ConjugateGradientOptim.LiuStorrey(),
+    B_config,
     ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
     verbose = false,
 )
 
-N_vars = 2
+rerun_config2 = ConjugateGradientOptim.setupCGConfig(
+    ϵ,
+    #ConjugateGradientOptim.setupYuanWangSheng(μ),
+    ConjugateGradientOptim.LiuStorrey(),
+    ConjugateGradientOptim.EnableTrace();
+    max_iters = 1000,
+    verbose = false,
+)
+
+
 constraints = ConjugateGradientOptim.setupCvxInequalityConstraint(Float64, 2*N_vars, 2) # box constraint.
 
 # TODO add verbose mode as dispatch?
@@ -153,7 +155,7 @@ b_ret = ConjugateGradientOptim.barriermethod!(
     config,
     linesearch_config,
     barrier_config,
-    #(rerun_config1, linesearch_config),
+    #(rerun_config1, linesearch_config), # enabling quasi-Newton actually makes it slower to converge.
     (rerun_config2, linesearch_config),
 )
 

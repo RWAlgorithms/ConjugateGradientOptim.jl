@@ -13,6 +13,7 @@ using LinearAlgebra
 include("types.jl")
 include("cg_utils.jl")
 include("cg_flavours.jl")
+include("qn_flavours.jl")
 
 include("./linesearch/wolfe.jl")
 include("./linesearch/nocedal.jl")

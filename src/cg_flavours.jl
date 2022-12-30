@@ -1,3 +1,40 @@
+### generic core routines.
+function updatedir!(
+    u::Vector{T},
+    df_x::Vector{T},
+    β::T,
+    ) where T <: AbstractFloat
+
+    @assert length(u) == length(df_x)
+
+    for i in eachindex(u)
+        u[i] = -df_x[i] + β*u[i]
+    end
+
+    return nothing
+end
+
+function initializeβ(::Type{T}, β_config::CGβConfig) where T
+    return zeros(T, 1)
+end
+
+# conjugate gradient.
+function initializeLineSearchContainer!(
+    info::LineSearchContainer{T},
+    β_config::CGβConfig,
+    df_x::Vector{T},
+    x::Vector{T},
+    ) where T
+
+    info.u[:] = -df_x # search direction.
+    info.x[:] = x
+    info.xp[:] = x
+    info.df_xp[:] = df_x
+    
+    return nothing
+end
+
+
 
 #### various types of conjugate gradient β values.
 # See `ConjugateGradientOptim.jl`  for full reference information.

@@ -60,19 +60,20 @@ end
 #   -therefore, we're not removing the referenes to f_x in solvesystem().
 
 # allows for objective to increase.
-# use `u` here as `d` from (Yuan 2019).
+# use `u` here as `d` from (Yuan 2019). quasi-Newton not used with this.
 function solvesystem(
     fdf!,
     x_initial::Vector{T},
     config::CGConfig{T,BT,ET},
     linesearch_config::LinesearchSolveSys{T},
-    ) where {T <: AbstractFloat, BT, ET}
+    ) where {T <: AbstractFloat, BT <: CGβConfig, ET}
 
     # # Set up.
 
     # ## parse.
     D = length(x_initial)
     max_iters = config.max_iters
+    β_config = config.β_config
     #linesearch_config = config.linesearch_config
 
     # ## allocate.
@@ -100,10 +101,8 @@ function solvesystem(
 
     # ## line search.
     info = LineSearchContainer(T, D)
-    info.u[:] = -df_x # search direction.
-    info.x[:] = x
-    info.xp[:] = x
-    info.df_xp[:] = df_x
+    initializeLineSearchContainer!(info, β_config, df_x, x)
+    a_initial = NaN # use default value on first try. Use HagerZhang 851 algorithm later.
 
     # # Run algortihm.
     for n = 1:max_iters
@@ -179,7 +178,7 @@ function solvesystem(
         # update objective-related evaluations using `x`, and update `β`.
         f_x = fdf!(info.df_xp, x) # temporarily use info.df_xp to store the gradient of the next iterate.
         β = getβ(
-            config.β_config,
+            β_config,
             info.df_xp,
             df_x,
             info.u,
@@ -189,7 +188,7 @@ function solvesystem(
         norm_df_x = norm(df_x)
 
         # step 2 (Yuan 2019): update search direction u.
-        updatedir!(config.β_config, info.u, df_x, β)
+        updatedir!(info.u, df_x, β)
 
         # update trace.
         updatetrace!(

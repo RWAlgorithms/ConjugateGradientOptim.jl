@@ -179,7 +179,7 @@ function setupCGConfig(
     #linesearch_max_iters = round(Int, log(ρ, 1e-6)),
     max_iters = 1000,
     verbose = false,
-    )::CGConfig{T,BT,ET} where {T <: AbstractFloat, BT <: CGβConfig, ET <: TraceTrait}
+    )::CGConfig{T,BT,ET} where {T <: AbstractFloat, BT <: βConfig, ET <: TraceTrait}
 
     # @assert zero(T) < ρ < one(T)
     # @assert ρ > zero(T)

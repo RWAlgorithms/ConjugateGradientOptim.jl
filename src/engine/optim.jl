@@ -13,6 +13,7 @@ function minimizeobjective(
     # ## parse.
     D = length(x_initial)
     max_iters = config.max_iters
+    β_config = config.β_config
     #linesearch_config = config.linesearch_config
 
     # ## allocate.
@@ -23,7 +24,8 @@ function minimizeobjective(
     # ## Step 1 (Yuan 2019): initialize or allocate for first iteration.
     f_x::T = fdf!(df_x, x)
     norm_df_x::T = norm(df_x)
-    β::T = zero(T)
+    #β::T = zero(T)
+    β = initializeβ(T, β_config)
     fdf_evals_ran::Int = -1
     f_x0 = f_x # objective of initial iterate.
     
@@ -40,10 +42,7 @@ function minimizeobjective(
 
     # ## line search.
     info = LineSearchContainer(T, D)
-    info.u[:] = -df_x # search direction.
-    info.x[:] = x
-    info.xp[:] = x
-    info.df_xp[:] = df_x
+    initializeLineSearchContainer!(info, β_config, df_x, x)
     a_initial = NaN # use default value on first try. Use HagerZhang 851 algorithm later.
 
     # # Run algortihm.
@@ -115,7 +114,7 @@ function minimizeobjective(
         # step 4 & 5 (Yuan 2019): update iterate and objective-related evaluations.
         #f_x = fdf!(info.df_xp, x) # temporarily use info.df_xp to store the gradient of the next iterate.
         β = getβ(
-            config.β_config,
+            β_config,
             info.df_xp,
             df_x,
             info.u,            
@@ -127,7 +126,7 @@ function minimizeobjective(
         norm_df_x = norm(df_x)
 
         # step 5: update search direction for next iteration.
-        updatedir!(config.β_config, info.u, df_x, β)
+        updatedir!(info.u, df_x, β)
 
         # update trace.
         updatetrace!(
