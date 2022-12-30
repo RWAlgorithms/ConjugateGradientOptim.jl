@@ -189,7 +189,7 @@ function solvesystem(
         norm_df_x = norm(df_x)
 
         # step 2 (Yuan 2019): update search direction u.
-        updatedir!(info.u, df_x, β)
+        updatedir!(config.β_config, info.u, df_x, β)
 
         # update trace.
         updatetrace!(

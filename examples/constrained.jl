@@ -73,36 +73,52 @@ hdh! = (fi_xx,dfi_xx,xx)->boxhdh!(
 lbs = ones(2) .* -10
 ubs = ones(2) .* 10
 
-c1 = 1e-5
-c2 = 0.8
-linesearch_config = ConjugateGradientOptim.setupLinesearchNocedal(
-    c1, c2; a_max_growth_factor = 2.0,
-    max_iters = 1000, zoom_max_iters = 50,
+# c1 = 1e-5
+# c2 = 0.8
+# linesearch_config = ConjugateGradientOptim.setupStrongWolfeBisection(
+#     c1, c2; a_max_growth_factor = 2.0,
+#     max_iters = 1000, zoom_max_iters = 50,
+# )
+
+c1 = 1e-3
+c2 = 0.9
+δ1 = 1e-6
+condition = ConjugateGradientOptim.YuanWeiLuWolfe(c1,c2,δ1)
+#condition = ConjugateGradientOptim.Wolfe(c1,c2)
+max_iters = 50
+max_step_size = 1e12
+feasibility_max_iters = 50
+linesearch_config = ConjugateGradientOptim.WolfeBisection(
+    condition, max_iters, max_step_size, feasibility_max_iters,
 )
 
-
+μ = 0.1
 ϵ = 1e-5
 config = ConjugateGradientOptim.setupCGConfig(
     ϵ,
-    ConjugateGradientOptim.SallehAlhawarat(),
+    #ConjugateGradientOptim.setupYuanWangSheng(μ),
+    ConjugateGradientOptim.HagerZhang(),
+    #ConjugateGradientOptim.SallehAlhawarat(),
     #ConjugateGradientOptim.LiuStorrey(),
     ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
     verbose = false,
 )
 
-rerun_config1 = ConjugateGradientOptim.setupCGConfig(
-    ϵ,
-    ConjugateGradientOptim.HagerZhang(),
-    ConjugateGradientOptim.EnableTrace();
-    max_iters = 1000,
-    verbose = false,
-)
+# rerun_config1 = ConjugateGradientOptim.setupCGConfig(
+#     ϵ,
+#     #ConjugateGradientOptim.HagerZhang(),
+#     ConjugateGradientOptim.LiuStorrey(),
+#     #ConjugateGradientOptim.setupYuanWangSheng(μ),
+#     ConjugateGradientOptim.EnableTrace();
+#     max_iters = 1000,
+#     verbose = false,
+# )
 
-μ = 0.1
 rerun_config2 = ConjugateGradientOptim.setupCGConfig(
     ϵ,
     ConjugateGradientOptim.setupYuanWangSheng(μ),
+    #ConjugateGradientOptim.LiuStorrey(),
     ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
     verbose = false,
@@ -119,81 +135,6 @@ f_x0 = fdf!(df_x0, x0)
 
 u = hdh!(constraints.fi_evals, constraints.dfi_evals, x0)
 
-# ## debug.
-# @show constraints.fi_evals
-# @show constraints.dfi_evals
-# @show constraints.grad
-# println()
-# @show x0
-
-# # I am here. track barriermethod() because it isn't matching up.
-# #t0 = 1.0
-# t0 = NaN
-# t0 = ConjugateGradientOptim.verifyt0(
-#     t0, 
-#     x0, fdf!, 10.0, 0.0)
-    
-# #
-# T = Float64
-# f0df0! = fdf!
-
-# t = ones(T, 1)
-# t[begin] = t0
-# qdq! = (gg,xx)->ConjugateGradientOptim.evalbarrier!(
-#     constraints,
-#     gg,
-#     f0df0!,
-#     hdh!,
-#     xx,
-#     t[begin],
-# )
-
-
-# dq_x0 = similar(x0)
-
-# @show x0
-# q_x0 = qdq!(dq_x0, x0)
-# @show x0 # I am here. problem.
-
-# @show constraints.fi_evals
-# @show constraints.dfi_evals
-# @show constraints.grad
-# println()
-
-# rets = ConjugateGradientOptim.minimizeobjectivererun(
-#     qdq!,
-#     x0,
-#     config,
-#     linesearch_config,
-#     (rerun_config1, linesearch_config),
-#     (rerun_config2, linesearch_config),
-# )
-# @show rets[end].status, rets[end].minimizer, length(rets)
-
-# @assert 1==2
-
-# ret = ConjugateGradientOptim.minimizeobjective(
-#     #fdf!,
-#     qdq!,
-#     x0,
-#     config,
-#     linesearch_config,
-# )
-# @show ret.status, ret.minimizer
-
-# ret2 = ConjugateGradientOptim.minimizeobjective(
-#     #fdf!,
-#     qdq!,
-#     ret.minimizer,
-#     config,
-#     linesearch_config,
-# )
-# dq_x_star = similar(ret2.minimizer)
-# q_x_star = qdq!(dq_x_star, ret2.minimizer)
-
-# @show ret2.status, ret2.minimizer
-
-# @assert 1==2
 
 barrier_tol = 1e-8
 barrier_growth_factor = 10.0
@@ -201,7 +142,8 @@ max_iters = 100
 barrier_config = ConjugateGradientOptim.setupBarrierConfig(
     barrier_tol,
     barrier_growth_factor,
-    max_iters,
+    max_iters;
+    #t_initial = 1.0,
 )
 b_ret = ConjugateGradientOptim.barriermethod!(
     constraints,
@@ -211,12 +153,18 @@ b_ret = ConjugateGradientOptim.barriermethod!(
     config,
     linesearch_config,
     barrier_config,
-    (rerun_config1, linesearch_config),
+    #(rerun_config1, linesearch_config),
     (rerun_config2, linesearch_config),
 )
 
 @show b_ret.status
+@show b_ret.total_objective_evals
 @show b_ret.centering_results[end][end].status
+@show b_ret.centering_results[end][end].minimizer
+@show norm(b_ret.centering_results[end][end].gradient)
+rets = b_ret.centering_results
+
+obj_evals = collect(collect(rets[i][j].trace.objective_evals for j in eachindex(rets[i])) for i in eachindex(rets))
 
 @assert 6==5
 

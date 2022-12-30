@@ -14,10 +14,12 @@ include("types.jl")
 include("cg_utils.jl")
 include("cg_flavours.jl")
 
-include("solve_system.jl")
-include("optim.jl")
+include("./linesearch/wolfe.jl")
+include("./linesearch/nocedal.jl")
 
-include("barrier.jl")
+include("./engine/solve_system.jl")
+include("./engine/optim.jl")
+include("./engine/barrier.jl")
 
 export TraceContainer,
 EnableTrace,

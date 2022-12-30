@@ -33,7 +33,7 @@ fdf! = boothfdf!
 
 c1 = 1e-5
 c2 = 0.8
-linesearch_config = ConjugateGradientOptim.setupLinesearchNocedal(
+linesearch_config = ConjugateGradientOptim.setupStrongWolfeBisection(
     c1, c2; a_max_growth_factor = 2.0,
     max_iters = 1000, zoom_max_iters = 100,
 )

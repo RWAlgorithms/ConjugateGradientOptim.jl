@@ -74,8 +74,8 @@ lbs = ones(2) .* -10
 ubs = ones(2) .* 10
 
 c1 = 1e-5
-c2 = 0.8
-linesearch_config = ConjugateGradientOptim.setupLinesearchNocedal(
+c2 = 0.9
+linesearch_config = ConjugateGradientOptim.setupStrongWolfeBisection(
     c1, c2; a_max_growth_factor = 2.0,
     max_iters = 1000, zoom_max_iters = 50,
 )

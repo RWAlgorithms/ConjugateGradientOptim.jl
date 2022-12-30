@@ -6,7 +6,7 @@
 
 
 # (Yuang 2019): modified Hager-Zhang, to have trust region behavior.
-struct YuanWangSheng{T} <: βConfig
+struct YuanWangSheng{T} <: CGβConfig
     μ::T
 end
 
@@ -50,7 +50,7 @@ end
 
 
 # The HagerZhang linesearch from Algorithm 851 is not implemented as of now.
-struct HagerZhang <: βConfig end
+struct HagerZhang <: CGβConfig end
 
 # sec 2.2 of (Yuan 2019).
 # This is the YuanWangSheng version, but set R = R2.
@@ -78,7 +78,7 @@ function getβ(
 end
 
 # Don't use Hestenses-Stiefel because it can yield ascent search directions.
-# struct HestensesStiefel <: βConfig end
+# struct HestensesStiefel <: CGβConfig end
 
 # # sec 1 from (Yuan 2021).
 # function getβ(
@@ -97,7 +97,7 @@ end
 # end
 
 # This is a modified Hestenses-Stiefel that restarts if ascent search direction is encountered.
-struct SallehAlhawarat <: βConfig end
+struct SallehAlhawarat <: CGβConfig end
 
 # sec 2 of (Salleh 2016)
 function getβ(
@@ -121,7 +121,7 @@ function getβ(
 end
 
 
-struct LiuStorrey <: βConfig end
+struct LiuStorrey <: CGβConfig end
 
 # sec 1 from (Yuan 2021).
 function getβ(

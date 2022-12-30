@@ -1,5 +1,6 @@
 
 function updatedir!(
+    β_config::CGβConfig,
     u::Vector{T},
     df_x::Vector{T},
     a::T,
@@ -10,6 +11,23 @@ function updatedir!(
     for i in eachindex(u)
         u[i] = -df_x[i] + a*u[i]
     end
+
+    return nothing
+end
+
+function updatedir!(
+    β_config::QNβConfig,
+    u::Vector{T},
+    df_x::Vector{T},
+    a::T,
+    ) where T
+
+    @assert length(u) == length(df_x)
+
+    # here.
+    # for i in eachindex(u)
+    #     u[i] = -df_x[i] + a*u[i]
+    # end
 
     return nothing
 end

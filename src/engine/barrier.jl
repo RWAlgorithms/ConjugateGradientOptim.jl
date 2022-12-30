@@ -4,6 +4,7 @@ struct BarrierResults{T,TrT}
     status::Symbol
     iters_ran::Int
     t_final::T
+    total_objective_evals::Int
 end
 
 function assembleresults!(
@@ -15,11 +16,21 @@ function assembleresults!(
 
     resize!(rets, iter)
 
+    total_objective_evals = 0
+    for n in eachindex(rets)
+        for i in eachindex(rets[n])
+            for j in eachindex(rets[n][i].trace.objective_evals)
+                total_objective_evals += rets[n][i].trace.objective_evals[j]
+            end
+        end
+    end
+
     return BarrierResults(
         rets,
         status,
         iter,
-        t
+        t,
+        total_objective_evals,
     )
 end
 
@@ -140,17 +151,17 @@ end
 function setupBarrierConfig(
     barrier_tol::T,
     barrier_growth_factor::T,
-    max_iters::Int,
+    max_iters::Int;
+    t_initial = convert(T, NaN)
     ) where T
 
-    t_initial = convert(T, NaN)
     inf_f0_lb = zero(T)
 
     return BarrierConfig(
         barrier_tol,
         barrier_growth_factor,
         max_iters,
-        convert(T, NaN),
+        t_initial,
         inf_f0_lb,
     )
 end
@@ -162,7 +173,7 @@ function barriermethod!(
     hdh!,
     x_initial::Vector{T},
     centering_config::CGConfig{T,BT,ET},
-    linesearch_config::LinesearchNocedal{T},
+    linesearch_config::LineSearchConfig,
     barrier_config::BarrierConfig{T},
     rerun_config_tuples...
     ) where {T,BT,ET}

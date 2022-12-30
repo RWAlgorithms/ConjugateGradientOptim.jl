@@ -1,6 +1,10 @@
+abstract type LineSearchConfig end
+# see linsearch.jl for the concrete types.
 
 abstract type βConfig end
-# see cg_flavours.jl for the concrete types of `βConfig`.
+abstract type CGβConfig <: βConfig end
+abstract type QNβConfig <: βConfig end
+# see cg_flavours.jl for the concrete types.
 
 abstract type TraceTrait end
 struct EnableTrace <: TraceTrait end
@@ -175,7 +179,7 @@ function setupCGConfig(
     #linesearch_max_iters = round(Int, log(ρ, 1e-6)),
     max_iters = 1000,
     verbose = false,
-    )::CGConfig{T,BT,ET} where {T <: AbstractFloat, BT <: βConfig, ET <: TraceTrait}
+    )::CGConfig{T,BT,ET} where {T <: AbstractFloat, BT <: CGβConfig, ET <: TraceTrait}
 
     # @assert zero(T) < ρ < one(T)
     # @assert ρ > zero(T)
