@@ -17,10 +17,13 @@ include("qn_flavours.jl")
 
 include("./linesearch/wolfe.jl")
 include("./linesearch/nocedal.jl")
+include("./linesearch/geometric.jl")
 
 include("./engine/solve_system.jl")
 include("./engine/optim.jl")
-include("./engine/barrier.jl")
+include("./engine/primal_barrier.jl")
+
+include("./QP/equality_QP.jl")
 
 export TraceContainer,
 EnableTrace,
@@ -58,3 +61,8 @@ end # end of module
 # Yuan, G., Wei, Z., & Lu, X. (2017). Global convergence of BFGS and PRP methods under a modified weak Wolfe–Powell line search. Applied Mathematical Modelling, 47, 811-825.
 # a modified weak Wolfe-Powell line search, known as the YWL line search.
 # DOI: 10.1016/j.apm.2017.02.008
+
+# ## (Shi, 2005)
+# Shi, Z. J., & Shen, J. (2005). New inexact line search method for unconstrained optimization. Journal of optimization theory and applications, 127(2), 425-446.
+# A summary of some inexact linesearch, and a modified Armijo condition.
+# DOI: 10.1007/s10957-005-6553-6

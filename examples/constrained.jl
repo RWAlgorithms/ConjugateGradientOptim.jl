@@ -93,6 +93,13 @@ linesearch_config = ConjugateGradientOptim.WolfeBisection(
     condition, max_iters, max_step_size, feasibility_max_iters,
 )
 
+max_iters2 = 300
+discount_factor = 0.9
+condition2 = ConjugateGradientOptim.Armijo(c1)
+linesearch_config2 = ConjugateGradientOptim.Backtracking(
+    condition2, discount_factor, max_iters2, feasibility_max_iters,
+)
+
 μ = 0.1
 #ϵ_coarse = 1e-3
 ϵ = 1e-5
@@ -141,13 +148,13 @@ u = hdh!(constraints.fi_evals, constraints.dfi_evals, x0)
 barrier_tol = 1e-8
 barrier_growth_factor = 10.0
 max_iters = 100
-barrier_config = ConjugateGradientOptim.setupBarrierConfig(
+barrier_config = ConjugateGradientOptim.setupPrimalBarrierConfig(
     barrier_tol,
     barrier_growth_factor,
     max_iters;
     #t_initial = 1.0,
 )
-b_ret = ConjugateGradientOptim.barriermethod!(
+b_ret = ConjugateGradientOptim.primalbarriermethod!(
     constraints,
     fdf!,
     hdh!,
@@ -155,7 +162,7 @@ b_ret = ConjugateGradientOptim.barriermethod!(
     config,
     linesearch_config,
     barrier_config,
-    #(rerun_config1, linesearch_config), # enabling quasi-Newton actually makes it slower to converge.
+    (rerun_config1, linesearch_config2), # enabling quasi-Newton actually makes it slower to converge, if the Wolfe condition for linesearch is used. better with Armijo condition.
     (rerun_config2, linesearch_config),
 )
 
@@ -168,10 +175,7 @@ rets = b_ret.centering_results
 
 obj_evals = collect(collect(rets[i][j].trace.objective_evals for j in eachindex(rets[i])) for i in eachindex(rets))
 
-@assert 6==5
-
-rets = b_ret.centering_results
-ret = rets[end]
+ret = rets[end][end]
 @show b_ret.status, b_ret.iters_ran
 println()
 
@@ -212,35 +216,6 @@ df_x = ones(length(x_oracle))
 f_x_oracle = fdf!(df_x, x_oracle)
 println("Gradient at oracle:")
 @show df_x
+println("zero if non-binding constraints.")
 println()
 
-
-
-# gradient check.
-Random.seed!(343242)
-x_test = randn(2)
-f_x = fdf!(df_x, x_test)
-@show f_x, df_x
-
-ND_accuracy_order = 8
-
-objectivefunc = xx->fdf!(df_x, xx)
-df_ND = pp->FiniteDifferences.grad(
-    FiniteDifferences.central_fdm(
-        ND_accuracy_order,
-        1,
-    ),
-    objectivefunc,
-    pp
-)[1]
-
-df_ND_eval = df_ND(x_test)
-@show norm(df_ND_eval)
-println()
-
-f_x = fdf!(df_x, x_test)
-@show norm(df_x-df_ND_eval) # passed.
-
-# next, implement options for PRP, HS, or LS β.
-# next, implement bisection search from {s, ..., s*ρ^(i-1)}
-# https://en.wikipedia.org/wiki/Bisection_method#Iteration_tasks

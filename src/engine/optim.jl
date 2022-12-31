@@ -19,11 +19,12 @@ function minimizeobjective(
     # ## allocate.
     df_x = Vector{T}(undef, D)
     x = copy(x_initial)
-    #u = Vector{T}(undef, D) 
+    #u_prev = Vector{T}(undef, D)
 
     # ## Step 1 (Yuan 2019): initialize or allocate for first iteration.
     f_x::T = fdf!(df_x, x)
     norm_df_x::T = norm(df_x)
+    norm_df_xp::T = NaN
     #β::T = zero(T)
     β = initializeβ(T, β_config)
     fdf_evals_ran::Int = -1
@@ -48,10 +49,10 @@ function minimizeobjective(
     # # Run algortihm.
     for n = 1:max_iters
 
-        # check stopping condition.
-        if isfinite(f_x)
+        # check stopping conditions.
+        if isfinite(f_x) && isfinite(norm_df_x)
             if norm_df_x < config.ϵ
-                #@show f_x, f_x0
+                
                 if f_x <= f_x0
                     # the previous iteration meets the stopping criteria. Return it.
                     updateresult!(
@@ -76,16 +77,6 @@ function minimizeobjective(
                 )
                 return ret
             end
-        else            
-            updateresult!(
-                ret,
-                x,
-                df_x,
-                f_x,
-                n-1,
-                :non_finite_objective,
-            )
-            return ret
         end
 
         # step 3 (Yuan 2019): linesearch.
@@ -97,7 +88,8 @@ function minimizeobjective(
             df_x,
             a_initial,
         )
-        a_initial = a_star
+        
+        a_initial = a_star # set to last solved step.
         if status_symbol != :success
             # return the last known good iterate.
             updateresult!(
@@ -111,6 +103,28 @@ function minimizeobjective(
             return ret
         end
 
+        # check if we have a numerically valid proposed iterate and its gradient, before updating the current iterate.
+        norm_df_xp = norm(info.df_xp)
+        if !isfinite(f_xp) || !isfinite(norm_df_xp)
+            
+            # terminate on indeterminant or overflowed derivatives even if the objective is valid.
+            # this might happen for when the df_x is very large in the neighbourhood of the iterate x, which is common in primal barrier objectives.
+            updateresult!(
+                ret,
+                x,
+                df_x,
+                f_x,
+                n-1,
+                :non_finite_objective_or_gradient_proposed,
+            )
+            return ret
+        end
+        
+        # save some quantities for initial step a_initial.
+        #f_x_prev = f_x
+        #dϕ_0 = dot(df_x, info.u)
+
+        # safe to update current iterate.
         # step 4 & 5 (Yuan 2019): update iterate and objective-related evaluations.
         #f_x = fdf!(info.df_xp, x) # temporarily use info.df_xp to store the gradient of the next iterate.
         β = getβ(
@@ -120,13 +134,19 @@ function minimizeobjective(
             info.u,            
         )
         x[:] = info.xp
+
         f_x = f_xp
         df_x[:] = info.df_xp # now, safe to overwrite gradient of the iterate.
         info.x[:] = x
-        norm_df_x = norm(df_x)
-
+        norm_df_x = norm_df_xp
+        
         # step 5: update search direction for next iteration.
+        
         updatedir!(info.u, df_x, β)
+
+        # seems slower than just simply set step to the last solved step.
+        #a_initial = 2*(f_x-f_x_prev)/dot(df_x, info.u) # eqn 3.6 from (Nocedal 2006).
+        #a_initial = a_star * dϕ_0/dot(df_x, info.u)
 
         # update trace.
         updatetrace!(

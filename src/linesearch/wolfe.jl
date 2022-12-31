@@ -1,26 +1,6 @@
 
 ######### Inexact linesearch for the various Wolfe-based conditions.
 
-############ WIP.
-struct GeometricLinesearch{CT}
-    condition::CT
-    max_iters::Int
-end
-
-function linesearch!(
-    info::LineSearchContainer{T},
-    config::GeometricLinesearch{T},
-    fdf!,
-    f_x::T,
-    df_x::Vector{T},
-    a_initial::T,
-    ) where T <: AbstractFloat
-
-    # parse.
-    xp, df_xp, x, u = info.xp, info.df_xp, info.x, info.u
-
-end
-
 # based on https://sites.math.washington.edu/~burke/crs/408/notes/nlp/line.pdf
 
 struct WolfeBisection{T,CT} <: LineSearchConfig
@@ -63,7 +43,7 @@ function linesearch!(
     end
     
     a = a_initial
-    fdf_evals_ran = 1
+    fdf_evals_ran = 0
     lb = zero(T)
     ub = convert(T, Inf)
 

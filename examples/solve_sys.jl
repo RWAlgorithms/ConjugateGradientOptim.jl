@@ -30,7 +30,7 @@ fig_num = 1
 fdf! = boothfdf!
 
 
-
+# Yuan.
 s = 1.0
 ρ = 0.95
 approx_min_step_size = 1e-6

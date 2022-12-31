@@ -1,5 +1,5 @@
 
-struct BarrierResults{T,TrT}
+struct PrimalBarrierResults{T,TrT}
     centering_results::Vector{Vector{Results{T,TrT}}}
     status::Symbol
     iters_ran::Int
@@ -12,7 +12,7 @@ function assembleresults!(
     status::Symbol,
     iter::Int,
     t::T,
-    )::BarrierResults{T,TrT} where {T,TrT}
+    )::PrimalBarrierResults{T,TrT} where {T,TrT}
 
     resize!(rets, iter)
 
@@ -25,7 +25,7 @@ function assembleresults!(
         end
     end
 
-    return BarrierResults(
+    return PrimalBarrierResults(
         rets,
         status,
         iter,
@@ -34,18 +34,6 @@ function assembleresults!(
     )
 end
 
-# buffers intended for the barrier method.
-# struct BoxConstraint{T}
-#     fi_evals::Vector{T}
-#     dfi_evals::Vector{Vector{T}}
-#     grad::Vector{T}
-# end
-
-# struct OrderConstraint{T}
-#     fi_evals::Vector{T}
-#     dfi_evals::Vector{Vector{T}}
-#     grad::Vector{T}
-# end
 
 struct CvxInequalityConstraint{T}
     fi_evals::Vector{T}
@@ -140,7 +128,7 @@ function evalbarrier!(
     return t*f_x + ψ_x # return the barrier objective.
 end
 
-struct BarrierConfig{T}
+struct PrimalBarrierConfig{T}
     barrier_tol::T
     barrier_growth_factor::T
     max_iters::Int
@@ -148,7 +136,7 @@ struct BarrierConfig{T}
     inf_f0_lb::T
 end
 
-function setupBarrierConfig(
+function setupPrimalBarrierConfig(
     barrier_tol::T,
     barrier_growth_factor::T,
     max_iters::Int;
@@ -157,7 +145,7 @@ function setupBarrierConfig(
 
     inf_f0_lb = zero(T)
 
-    return BarrierConfig(
+    return PrimalBarrierConfig(
         barrier_tol,
         barrier_growth_factor,
         max_iters,
@@ -167,14 +155,14 @@ function setupBarrierConfig(
 end
 
 # algorithm 11.1 (Boyd 2004).
-function barriermethod!(
+function primalbarriermethod!(
     constraints::CvxInequalityConstraint{T},
     f0df0!,
     hdh!,
     x_initial::Vector{T},
     centering_config::CGConfig{T,BT,ET},
     linesearch_config::LineSearchConfig,
-    barrier_config::BarrierConfig{T},
+    barrier_config::PrimalBarrierConfig{T},
     rerun_config_tuples...
     ) where {T,BT,ET}
     

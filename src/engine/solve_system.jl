@@ -79,6 +79,7 @@ function solvesystem(
     # ## allocate.
     df_x = Vector{T}(undef, D)
     x = copy(x_initial)
+    x_next = copy(x_initial) # swap with x, so a good iterate with finite gradient is stored.
     #u = Vector{T}(undef, D) 
 
     # ## Step 1 (Yuan 2019): initialize or allocate for first iteration.
@@ -168,15 +169,35 @@ function solvesystem(
 
         # update the iterate `x` using the linesearch solution in `info`.
         updateiteratesolvesys!(
-            x,
+            x_next,
             info.df_xp,
             norm_df_xp,
             a_star,
             info.u,
         )
+        # make sure the udpated iterate does not numerically overflow!!
+        f_x_next = fdf!(info.df_xp, x_next) # temporarily use info.df_xp to store the gradient of the next iterate.
+        if !isfinite(f_x_next) || !isfinite(norm(info.df_xp))
+            
+            # terminate on indeterminant or overflowed derivatives even if the objective is valid.
+            # this might happen for when the df_x is very large in the neighbourhood of the iterate x, which is common in primal barrier objectives.
+            # return the last known good iterate.
+            updateresult!(
+                ret,
+                x,
+                df_x,
+                f_x,
+                n-1,
+                :non_finite_objective_or_gradient_proposed,
+            )
+            return ret
+        else
+            # safely update.
+            x, x_next = x_next, x
+            f_x = f_x_next
+        end
 
         # update objective-related evaluations using `x`, and update `β`.
-        f_x = fdf!(info.df_xp, x) # temporarily use info.df_xp to store the gradient of the next iterate.
         β = getβ(
             β_config,
             info.df_xp,

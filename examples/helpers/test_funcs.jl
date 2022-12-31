@@ -90,3 +90,18 @@ function mseobjfunc(yn::Float64, ϕn::Vector{Float64}, θn::Vector{Float64})
 
     return err
 end
+
+
+########## equality constrained QP example problems.
+
+function equalityQPexample169()
+    G = [6 2 1; 2 5 2; 1 2 4] .* 1.0
+    c = [-8; -3; -3] .* 1.0
+    A = [1 0 1; 0 1 1] .* 1.0
+    b = [3; 0] .* 1.0
+
+    x_oracle = [2; -1; 1] .* 1.0
+    λ_oracle = [3; -2] .* 1.0
+
+    return G, c, A, b, x_oracle, λ_oracle
+end
