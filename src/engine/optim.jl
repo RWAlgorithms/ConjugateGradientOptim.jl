@@ -186,12 +186,12 @@ function minimizeobjectivererun(
         config,
         linesearch_config,
     )
-
+    
     # run with backup configs if unsuccessful.
     for k in eachindex(rerun_config_tuples)
         if rets[end].status != :success
             rerun_config, backup_linesearch_config = rerun_config_tuples[k]
-
+            
             ret = ConjugateGradientOptim.minimizeobjective(
                 fdf!,
                 rets[end].minimizer,

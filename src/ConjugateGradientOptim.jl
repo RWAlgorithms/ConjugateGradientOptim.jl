@@ -2,13 +2,10 @@ module ConjugateGradientOptim
 
 using LinearAlgebra
 
-#include("./linesearch/linesearch_types.jl")
-#include("./linesearch/alg851.jl")
-
-# TODO make sure every variable is passed properly, within scope.
-# tests against every implemented cg flavour. Use setup from (Salleh 2016).
-# for barriermethod(), write routine that allows retry with different method if stuck.
-# TODO: verbose flag is not functional for now.
+# TODO: docstrings for every function and structure used in the examples.
+# TODO: make sure every variable is passed properly, within scope.
+# TODO: tests against every implemented cg flavour. Use setup from (Salleh 2016).
+# TODO: verbose flag is not functional for now. Implement via dispatch?
 
 include("types.jl")
 include("cg_utils.jl")
@@ -22,8 +19,6 @@ include("./linesearch/geometric.jl")
 include("./engine/solve_system.jl")
 include("./engine/optim.jl")
 include("./engine/primal_barrier.jl")
-
-include("./QP/equality_QP.jl")
 
 export TraceContainer,
 EnableTrace,

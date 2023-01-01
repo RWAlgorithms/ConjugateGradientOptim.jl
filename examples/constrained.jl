@@ -1,36 +1,20 @@
 
+include("a.jl") # disable if running this script repeately.
 
-# using LinearAlgebra
-# import Random
-# using BenchmarkTools
-# import LightSPSA
-
-#Random.seed!(25)
-#Random.seed!(35)
-Random.seed!(5)
-
+# Set up Julia session.
 include("./helpers/test_funcs.jl")
-#include("./helpers/utils.jl")
-
-#H = LightSPSA.generateHadamardmatrix(8)
-
-D = 6
-
-max_iters = 20000
-N_batches = 2000
-
 
 Random.seed!(24)
-
 PyPlot.close("all")
 fig_num = 1
 
-
-##########
-
-fdf! = boothfdf!
+# # Set up
 N_vars = 2
 
+# `fdf!` is the objective function.
+fdf! = boothfdf!
+
+# ## Box constraint
 function boxhdh!(
     fi_evals::Vector{T}, #mutates. length m. constraints.
     dfi_evals::Vector{Vector{T}}, #mutates, length m. gradient of constraints.
@@ -63,6 +47,12 @@ function boxhdh!(
     return nothing
 end
 
+# constraint function.
+
+lbs = ones(N_vars) .* -10 # lower bounds.
+ubs = ones(N_vars) .* 10 # upper bounds.
+
+# assemble the constraint function, `hdh!`.
 hdh! = (fi_xx,dfi_xx,xx)->boxhdh!(
     fi_xx,
     dfi_xx,
@@ -71,80 +61,120 @@ hdh! = (fi_xx,dfi_xx,xx)->boxhdh!(
     ubs,
 )
 
-lbs = ones(N_vars) .* -10
-ubs = ones(N_vars) .* 10
+# # Configurations
 
-# c1 = 1e-5
-# c2 = 0.8
-# linesearch_config = ConjugateGradientOptim.setupStrongWolfeBisection(
-#     c1, c2; a_max_growth_factor = 2.0,
-#     max_iters = 1000, zoom_max_iters = 50,
-# )
+# ## Line search configurations.
+max_iters_ls = 100
+max_step_size = 1e12
+feasibility_max_iters = 50
 
+# Strong Wolfe conditions. Uses a variation of Algorithm 3.6 from Nocedal 2006.
+c1 = 1e-5
+c2 = 0.8
+linesearch_config_SW = ConjugateGradientOptim.setupStrongWolfeBisection(
+    c1, c2; a_max_growth_factor = 2.0,
+    max_iters = max_iters_ls, zoom_max_iters = 50,
+)
+
+# (weak) Wolfe conditions. Uses a bisection algorithm.
 c1 = 1e-3
 c2 = 0.9
+condition = ConjugateGradientOptim.Wolfe(c1,c2)
+linesearch_config_W = ConjugateGradientOptim.WolfeBisection(
+    condition, max_iters_ls, max_step_size, feasibility_max_iters,
+)
+
+
+# Yuan's modification of the (weak) Wolfe conditions.
 δ1 = 1e-6
 condition = ConjugateGradientOptim.YuanWeiLuWolfe(c1,c2,δ1)
-#condition = ConjugateGradientOptim.Wolfe(c1,c2)
 max_iters = 50
 max_step_size = 1e12
 feasibility_max_iters = 50
-linesearch_config = ConjugateGradientOptim.WolfeBisection(
-    condition, max_iters, max_step_size, feasibility_max_iters,
+linesearch_config_YW = ConjugateGradientOptim.WolfeBisection(
+    condition, max_iters_ls, max_step_size, feasibility_max_iters,
 )
 
+# Armijo condition.
 max_iters2 = 300
 discount_factor = 0.9
 condition2 = ConjugateGradientOptim.Armijo(c1)
-linesearch_config2 = ConjugateGradientOptim.Backtracking(
+linesearch_config_A = ConjugateGradientOptim.Backtracking(
     condition2, discount_factor, max_iters2, feasibility_max_iters,
 )
 
-μ = 0.1
-#ϵ_coarse = 1e-3
-ϵ = 1e-5
-config = ConjugateGradientOptim.setupCGConfig(
+# ## Conjugate gradient configurations.
+
+ϵ = 1e-5 # stopping condition: gradient norm residual.
+
+config_HZ = ConjugateGradientOptim.setupCGConfig(
     ϵ,
-    #ConjugateGradientOptim.setupYuanWangSheng(μ),
     ConjugateGradientOptim.HagerZhang(),
-    #ConjugateGradientOptim.SallehAlhawarat(),
-    #ConjugateGradientOptim.LiuStorrey(),
     ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
-    verbose = false,
 )
 
-#B_config = ConjugateGradientOptim.setupBroydenFamily(0.0, N_vars) # BFGS
-B_config = ConjugateGradientOptim.setupBroydenFamily(1.0, N_vars) # DFP
-rerun_config1 = ConjugateGradientOptim.setupCGConfig(
+μ = 0.1
+config_YWS = ConjugateGradientOptim.setupCGConfig(
     ϵ,
-    B_config,
+    ConjugateGradientOptim.YuanWangSheng(μ),
     ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
-    verbose = false,
 )
 
-rerun_config2 = ConjugateGradientOptim.setupCGConfig(
+config_LS = ConjugateGradientOptim.setupCGConfig(
     ϵ,
-    #ConjugateGradientOptim.setupYuanWangSheng(μ),
     ConjugateGradientOptim.LiuStorrey(),
     ConjugateGradientOptim.EnableTrace();
     max_iters = 1000,
-    verbose = false,
 )
 
+config_SA = ConjugateGradientOptim.setupCGConfig(
+    ϵ,
+    ConjugateGradientOptim.SallehAlhawarat(),
+    #ConjugateGradientOptim.LiuStorrey(),
+    ConjugateGradientOptim.EnableTrace();
+    max_iters = 1000,
+)
 
-constraints = ConjugateGradientOptim.setupCvxInequalityConstraint(Float64, 2*N_vars, 2) # box constraint.
+Broyden_DFP = ConjugateGradientOptim.setupBroydenFamily(1.0, N_vars) # DFP
+#Broyden_BFGS = ConjugateGradientOptim.setupBroydenFamily(0.0, N_vars) # BFGS
+config_Broyden_DFP = ConjugateGradientOptim.setupCGConfig(
+    ϵ,
+    Broyden_DFP,
+    ConjugateGradientOptim.EnableTrace();
+    max_iters = 1000,
+)
 
-# TODO add verbose mode as dispatch?
+# # Run solver.
 
+# Select line search and CG configurations.
+linesearch_config = linesearch_config_W
+linesearch_config1 = linesearch_config_YW
+linesearch_config2 = linesearch_config_A
+
+config = config_HZ
+rerun_config1 = config_Broyden_DFP
+rerun_config2 = config_LS
+# enabling quasi-Newton actually makes it slower to converge for this primal barrier problem, if the Wolfe condition for linesearch is used. better with Armijo condition.
+
+# Initial iterate.
 x0 = [0.43; 1.23]
+println("Initial iterate: ", x0)
+println("Global minimum: ", [1; 3])
+println()
+
+# (optional) Get the initial objective and gradient.
 df_x0 = similar(x0)
 f_x0 = fdf!(df_x0, x0)
 
-u = hdh!(constraints.fi_evals, constraints.dfi_evals, x0)
+# Allocate buffer for constraints.
+constraints = ConjugateGradientOptim.setupCvxInequalityConstraint(Float64, 2*N_vars, 2) # box constraint.
 
+# (optional) evaluate the constraints and gradient at initial iterate.
+h_x0 = hdh!(constraints.fi_evals, constraints.dfi_evals, x0)
 
+# Barrier configurations.
 barrier_tol = 1e-8
 barrier_growth_factor = 10.0
 max_iters = 100
@@ -154,6 +184,8 @@ barrier_config = ConjugateGradientOptim.setupPrimalBarrierConfig(
     max_iters;
     #t_initial = 1.0,
 )
+
+# run solver.
 b_ret = ConjugateGradientOptim.primalbarriermethod!(
     constraints,
     fdf!,
@@ -162,10 +194,11 @@ b_ret = ConjugateGradientOptim.primalbarriermethod!(
     config,
     linesearch_config,
     barrier_config,
-    (rerun_config1, linesearch_config2), # enabling quasi-Newton actually makes it slower to converge, if the Wolfe condition for linesearch is used. better with Armijo condition.
+    (rerun_config1, linesearch_config2), 
     (rerun_config2, linesearch_config),
 )
 
+# # Visualize results.
 @show b_ret.status
 @show b_ret.total_objective_evals
 @show b_ret.centering_results[end][end].status
@@ -175,6 +208,7 @@ rets = b_ret.centering_results
 
 obj_evals = collect(collect(rets[i][j].trace.objective_evals for j in eachindex(rets[i])) for i in eachindex(rets))
 
+# Visualize the very last run of the algorithm, in the series of unconstrained problems that the barrier method solved.
 ret = rets[end][end]
 @show b_ret.status, b_ret.iters_ran
 println()
@@ -207,15 +241,3 @@ PyPlot.legend()
 PyPlot.xlabel("iter")
 PyPlot.ylabel("linesearch_iters")
 PyPlot.title("linesearch_iters vs. iter")
-
-
-
-
-x_oracle = [1.0; 3.0]
-df_x = ones(length(x_oracle))
-f_x_oracle = fdf!(df_x, x_oracle)
-println("Gradient at oracle:")
-@show df_x
-println("zero if non-binding constraints.")
-println()
-

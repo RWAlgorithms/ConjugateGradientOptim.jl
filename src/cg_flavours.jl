@@ -44,14 +44,7 @@ end
 
 # (Yuang 2019): modified Hager-Zhang, to have trust region behavior.
 struct YuanWangSheng{T} <: CGβConfig
-    μ::T
-end
-
-function setupYuanWangSheng(μ::T)::YuanWangSheng{T} where T
-
-    @assert zero(T) < μ < one(T)
-
-    return YuanWangSheng(μ)
+    μ::T # 0 < μ < 1.
 end
 
 # sec 2.2 of (Yuan 2019).
